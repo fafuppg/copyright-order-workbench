@@ -78,6 +78,19 @@ for (const field of ["completed", "needsSubmission"] as const) {
       });
       assert.equal(checkbox().props.checked, true);
       assert.equal(checkbox().props.disabled, false);
+      await act(async () => {
+        checkbox().props.onChange({ target: { checked: false } });
+      });
+      await act(async () => {
+        finish(
+          new Response(JSON.stringify({ error: "conflict" }), { status: 409 }),
+        );
+      });
+      assert.equal(
+        checkbox().props.checked,
+        true,
+        "failed later edits retain the last committed value",
+      );
     } finally {
       await act(async () => tree?.unmount());
       globalThis.fetch = oldFetch;

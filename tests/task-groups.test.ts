@@ -315,7 +315,7 @@ test("inline completion records delivery, reorders rows, reopens, highlights sub
       await completion().props.onChange({ target: { checked: true } });
     });
     assert.equal(completion().props.checked, false);
-    assert.ok(notices.includes("保存失败"));
+    assert.ok(notices.some((message) => message.includes("保存失败")));
   } finally {
     globalThis.fetch = originalFetch;
     if (tree) await act(async () => tree.unmount());
