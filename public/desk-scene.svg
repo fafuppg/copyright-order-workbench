@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 460" fill="none">
+  <defs>
+    <filter id="paperShadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#4f73aa" flood-opacity=".13"/></filter>
+    <linearGradient id="desk" x1="90" y1="382" x2="640" y2="382" gradientUnits="userSpaceOnUse"><stop stop-color="#dee8fa" stop-opacity="0"/><stop offset=".5" stop-color="#ccdafa"/><stop offset="1" stop-color="#dee8fa" stop-opacity="0"/></linearGradient>
+  </defs>
+  <ellipse cx="360" cy="385" rx="310" ry="30" fill="url(#desk)"/>
+  <path d="M73 348H663" stroke="#cedcf2" stroke-width="2"/>
+  <g transform="translate(227 40) rotate(5 158 164)" filter="url(#paperShadow)">
+    <rect x="10" y="10" width="305" height="330" rx="11" fill="#d9e5f8"/>
+    <rect width="305" height="330" rx="11" fill="white" stroke="#d3dff1"/>
+    <path d="M0 11a11 11 0 0 1 11-11h283a11 11 0 0 1 11 11v47H0V11Z" fill="#f8fbff"/>
+    <path d="M0 58H305" stroke="#e2eaf6"/>
+    <text x="25" y="35" fill="#365781" font-family="Arial,PingFang SC,Microsoft YaHei,sans-serif" font-size="18" font-weight="600">软件著作权 · 材料交付</text>
+    <rect x="25" y="80" width="54" height="23" rx="5" fill="#eaf2ff"/><text x="40" y="96" fill="#4a7ccd" font-family="Arial,PingFang SC,sans-serif" font-size="11">新单</text>
+    <rect x="87" y="80" width="54" height="23" rx="5" fill="#fff3dd"/><text x="102" y="96" fill="#b48b48" font-family="Arial,PingFang SC,sans-serif" font-size="11">补正</text>
+    <path d="M25 123H280" stroke="#e8edf6"/>
+    <text x="26" y="147" fill="#8a9db7" font-family="Arial,PingFang SC,sans-serif" font-size="11">软件名称</text>
+    <rect x="26" y="160" width="218" height="8" rx="3" fill="#8ba8d0"/>
+    <text x="26" y="196" fill="#8a9db7" font-family="Arial,PingFang SC,sans-serif" font-size="11">客户与联系方式</text>
+    <rect x="26" y="209" width="124" height="6" rx="3" fill="#b3c5e0"/>
+    <rect x="26" y="224" width="188" height="6" rx="3" fill="#d8e3f2"/>
+    <path d="M25 250H280" stroke="#e8edf6"/>
+    <rect x="26" y="269" width="20" height="20" rx="5" fill="#edf5ff"/>
+    <path d="m31 279 4 4 7-8" stroke="#5a8fd9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="57" y="283" fill="#6083b1" font-family="Arial,PingFang SC,sans-serif" font-size="12">资料已核对，可以交付</text>
+  </g>
+  <g transform="translate(77 102) rotate(-9 80 136)" filter="url(#paperShadow)">
+    <rect width="164" height="286" rx="24" fill="#28466f"/>
+    <rect x="6" y="6" width="152" height="274" rx="19" fill="#fafcff"/>
+    <rect x="57" y="12" width="50" height="8" rx="4" fill="#28466f"/>
+    <path d="M7 56H157" stroke="#e7eef8"/>
+    <circle cx="28" cy="41" r="8" fill="#dce8fb"/>
+    <path d="M45 37H123M45 46H90" stroke="#99b0d2" stroke-width="3" stroke-linecap="round"/>
+    <rect x="15" y="73" width="107" height="45" rx="8" fill="#edf2fa"/>
+    <path d="M26 87H106M26 98H88" stroke="#afc0da" stroke-width="3" stroke-linecap="round"/>
+    <rect x="43" y="133" width="105" height="56" rx="8" fill="#dbe9ff"/>
+    <path d="M54 148H132M54 160H116M54 172H125" stroke="#85a9dc" stroke-width="3" stroke-linecap="round"/>
+    <rect x="15" y="204" width="110" height="35" rx="8" fill="#edf2fa"/>
+    <path d="M26 218H108M26 228H75" stroke="#afc0da" stroke-width="3" stroke-linecap="round"/>
+    <path d="M60 266H104" stroke="#b7c7de" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(430 252) rotate(-7 112 64)" filter="url(#paperShadow)">
+    <rect width="222" height="134" rx="9" fill="#6394db"/>
+    <path d="m3 131 91-75h35l90 75" fill="#77a4e4"/>
+    <path d="M1 4 111 83 221 4" fill="#a9c9f6"/>
+    <path d="m3 6 108 77L219 6" stroke="#d7e6fc" stroke-width="2"/>
+    <circle cx="189" cy="111" r="23" fill="white" stroke="#d9e6f7"/>
+    <path d="m179 111 7 7 13-15" stroke="#4d8ad8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g transform="translate(568 82) rotate(15 25 60)">
+    <rect x="15" y="0" width="14" height="108" rx="6" fill="#6d94cb"/>
+    <path d="m15 104 7 20 7-20" fill="#bfd0e7"/>
+    <path d="m19 116 3 8 3-8" fill="#3d5d87"/>
+    <path d="M19 7v75" stroke="#a9c1e5" stroke-width="2" stroke-linecap="round"/>
+  </g>
+</svg>

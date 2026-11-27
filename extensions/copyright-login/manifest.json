@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "软著工作台 · 版权中心预填",
+  "version": "1.0.1",
+  "description": "点击工作台订单后，在版权中心登录页预填该订单的账号密码，不自动登录。",
+  "permissions": [
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://127.0.0.1/*",
+        "http://localhost/*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://register.ccopyright.com.cn/login.html*"
+      ],
+      "js": [
+        "fill.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

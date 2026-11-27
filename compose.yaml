@@ -1,0 +1,17 @@
+services:
+  workbench:
+    build: .
+    restart: unless-stopped
+    # Linux server: use the existing host MySQL on loopback; never expose its port.
+    network_mode: host
+    env_file: .env
+    environment:
+      HOST: 127.0.0.1
+      PORT: 3210
+      DB_TUNNEL: "false"
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+    volumes:
+      - attachment-temp:/app/data
+volumes:
+  attachment-temp:
