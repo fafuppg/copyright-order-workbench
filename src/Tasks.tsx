@@ -368,6 +368,10 @@ function GroupContacts({
   );
 }
 
+export function isOpenTask(task: Item) {
+  return !task.completed && !task.archived && !task.inRework && !task.cancelledAt;
+}
+
 export function TaskList({
   tasks,
   onRefresh,
@@ -525,9 +529,7 @@ export function TaskList({
       setSaving(new Set(savingIds.current));
     }
   }
-  const open = tasks.filter(
-    (t) => !t.completed && !t.archived && !t.inRework && !t.cancelledAt,
-  );
+  const open = tasks.filter(isOpenTask);
   return (
     <div className="page ledger-page compact-ledger">
       <div className="ledger-toolbar">

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ClipboardList,
-  Images,
+  LayoutDashboard,
   MessagesSquare,
   Users,
   Mail,
@@ -10,7 +10,7 @@ import {
   LogOut,
   RefreshCw,
   X,
-  ArrowRight,
+  Layers3,
   Database,
   ShieldCheck,
   Download,
@@ -19,7 +19,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { api, newTaskDraft, reworkTaskDraft, type Item } from "./api";
-import { TaskList, TaskForm, TaskDetail } from "./Tasks";
+import { TaskList, TaskForm, TaskDetail, isOpenTask } from "./Tasks";
+import Overview from "./Overview";
 import Intake from "./Intake";
 import Assistant from "./Assistant";
 import { MailComposer, Templates, Deliveries } from "./Mail";
@@ -27,6 +28,7 @@ import { Mailbox } from "./Mailbox";
 import { Busy, Empty, Field, InlineCell } from "./components";
 
 const nav = [
+  ["overview", "工作总览", LayoutDashboard],
   ["tasks", "任务工作台", ClipboardList],
   ["assistant", "AI 助手", MessagesSquare],
   ["mailbox", "邮箱管理", Inbox],
@@ -38,7 +40,7 @@ const nav = [
 export default function App() {
   const [auth, setAuth] = useState<boolean | null>(null),
     [data, setData] = useState<Item | null>(null),
-    [page, setPage] = useState("assistant"),
+    [page, setPage] = useState("overview"),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [detail, setDetail] = useState<Item | null>(null),
@@ -123,23 +125,22 @@ export default function App() {
         }}
       />
     );
+  const openTasks: Item[] = data?.tasks.filter(isOpenTask) ?? [];
   return (
     <div className="app-shell">
       <aside className="app-sidebar">
-        <a
-          className="product-name"
-          href="#assistant"
-          onClick={() => setPage("assistant")}
-        >
-          软著订单工作台<span>订单 · 补正 · 交付</span>
-        </a>
-        <div className="sidebar-section-label">工作空间</div>
+        <div className="product-name">
+          <span className="brand-mark">
+            <Layers3 size={20} aria-hidden="true" />
+          </span>
+          <strong>软著订单工作台</strong>
+        </div>
         <nav className="app-navigation" aria-label="工作空间导航">
           {nav.map(([id, label, Icon], index) => (
             <button
               className={
                 (page === id ? "active " : "") +
-                (index === 3 ? "nav-divider" : "")
+                (index === 4 ? "nav-divider" : "")
               }
               key={id}
               aria-current={page === id ? "page" : undefined}
@@ -150,27 +151,12 @@ export default function App() {
             >
               <Icon size={18} strokeWidth={1.8} />
               <span>{label}</span>
-              {id === "tasks" &&
-                !!data?.tasks?.filter((t: Item) => !t.completed && !t.archived)
-                  .length && (
-                  <small>
-                    {
-                      data.tasks.filter(
-                        (t: Item) => !t.completed && !t.archived,
-                      ).length
-                    }
-                  </small>
-                )}
+              {id === "tasks" && openTasks.length > 0 && (
+                <small>{openTasks.length}</small>
+              )}
             </button>
           ))}
         </nav>
-        <div className="sidebar-note">
-          <span className="cloud-dot" />
-          <div>
-            <strong>云端工作空间</strong>
-            <p>记录随操作保存</p>
-          </div>
-        </div>
         <button
           className="sidebar-logout"
           onClick={() =>
@@ -212,7 +198,8 @@ export default function App() {
             <RefreshCw className={refreshing ? "spin" : ""} size={17} />
           </button>
           <button
-            className="header-new"
+            className="header-new primary"
+            disabled={!data}
             onClick={() => setEdit(newTaskDraft())}
           >
             <Plus size={16} />
@@ -247,6 +234,16 @@ export default function App() {
           <div className="startup">
             <Busy label="读取云端数据…" />
           </div>
+        ) : page === "overview" ? (
+          <Overview
+            openTasks={openTasks}
+            completedCount={
+              data.tasks.filter((t: Item) => t.completed && !t.cancelledAt)
+                .length
+            }
+            onNavigate={setPage}
+            onTask={setDetail}
+          />
         ) : page === "tasks" ? (
           <TaskList
             tasks={data.tasks}
@@ -312,12 +309,6 @@ export default function App() {
           />
         )}
       </main>
-      <footer className="app-footer">
-        <span>
-          <Database size={12} /> 云端记录 · 及时保存
-        </span>
-        <span>压缩包仅临时用于发送</span>
-      </footer>
       {notice && (
         <div className="toast" role="status">
           <ShieldCheck size={18} />
@@ -385,20 +376,29 @@ function Login({
   return (
     <div className="login-page">
       <div className="login-intro">
-        <div className="login-brand">软著订单工作台</div>
-        <div className="login-scene">
-          <img
-            src="/desk-scene.svg"
-            alt="聊天记录、软著资料与交付信封组成的工作桌面"
-          />
+        <div className="login-brand">
+          <span className="brand-mark">
+            <Layers3 size={20} aria-hidden="true" />
+          </span>
+          软著订单工作台
         </div>
         <div className="login-caption">
-          <h1>
-            从一张聊天截图，
-            <br />
-            到一份交付记录。
-          </h1>
-          <p>新单有进度，补正有来处，交付有记录。</p>
+          <h1>管理软著订单</h1>
+          <p>集中处理新单、补正与邮件交付。</p>
+          <div className="login-workflow">
+            <span>
+              <ClipboardList size={20} aria-hidden="true" />
+              订单录入
+            </span>
+            <span>
+              <History size={20} aria-hidden="true" />
+              补正跟踪
+            </span>
+            <span>
+              <Mail size={20} aria-hidden="true" />
+              邮件交付
+            </span>
+          </div>
         </div>
       </div>
       <div className="login-form-wrap">
@@ -413,7 +413,6 @@ function Login({
               .finally(() => setBusy(false));
           }}
         >
-          <p className="context-line">你的订单工作空间</p>
           <h2>登录工作台</h2>
           <Field label="账号">
             <input
@@ -432,18 +431,8 @@ function Login({
           </Field>
           {error && <p className="error">{error}</p>}
           <button className="primary" disabled={busy}>
-            {busy ? (
-              <Busy label="登录中" />
-            ) : (
-              <>
-                进入工作台
-                <ArrowRight size={17} />
-              </>
-            )}
+            {busy ? <Busy label="登录中" /> : "进入工作台"}
           </button>
-          <p className="login-help">
-            初始登录信息保存在项目的私有登录信息文件中。
-          </p>
         </form>
       </div>
     </div>
