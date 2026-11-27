@@ -567,7 +567,12 @@ export function Templates({
             />
             {(editing.attachments || []).map((a: Item) => (
               <div className="attachment" key={a.id}>
-                <a href={"/api/v1/template-files/" + a.id} download>
+                <a
+                  href={
+                    import.meta.env.BASE_URL + "api/v1/template-files/" + a.id
+                  }
+                  download
+                >
                   {a.name}
                 </a>
                 <small>{bytes(a.size)}</small>

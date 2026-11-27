@@ -390,7 +390,7 @@ function Login({
         <div className="login-brand">软著订单工作台</div>
         <div className="login-scene">
           <img
-            src="/desk-scene.svg"
+            src={import.meta.env.BASE_URL + "desk-scene.svg"}
             alt="聊天记录、软著资料与交付信封组成的工作桌面"
           />
         </div>
@@ -803,7 +803,11 @@ function Settings({
             <p>
               导出包含客户、任务、模板、交付、修改记录和原始截图；不包含登录凭据及临时压缩包。
             </p>
-            <a className="button" href="/api/v1/export" download>
+            <a
+              className="button"
+              href={import.meta.env.BASE_URL + "api/v1/export"}
+              download
+            >
               <Download size={16} />
               下载完整业务备份
             </a>

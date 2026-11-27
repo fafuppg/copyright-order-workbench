@@ -6,7 +6,7 @@ export async function api(
   method?: string,
 ): Promise<any> {
   const multipart = body instanceof FormData;
-  const response = await fetch("/api/v1" + path, {
+  const response = await fetch(import.meta.env.BASE_URL + "api/v1" + path, {
     method: method || (body ? "POST" : "GET"),
     headers: {
       "x-workbench": "1",

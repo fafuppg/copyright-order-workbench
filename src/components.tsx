@@ -464,7 +464,7 @@ export function ImageViewer({ ids }: { ids: string[] }) {
         ref={viewport}
       >
         <img
-          src={"/api/v1/screenshots/" + ids[index]}
+          src={import.meta.env.BASE_URL + "api/v1/screenshots/" + ids[index]}
           ref={source}
           style={
             zoom === null ? undefined : { width: zoom + "%", maxWidth: "none" }
@@ -483,7 +483,7 @@ export function ImageViewer({ ids }: { ids: string[] }) {
             }}
           >
             <img
-              src={"/api/v1/screenshots/" + id}
+              src={import.meta.env.BASE_URL + "api/v1/screenshots/" + id}
               alt={"第" + (i + 1) + "张截图"}
             />
             <span>{i + 1}</span>

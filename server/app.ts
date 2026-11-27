@@ -184,7 +184,7 @@ export async function buildApp({
         new Date(Date.now() + 7 * 86400000),
       ]);
       reply.setCookie("workbench_session", token, {
-        path: "/",
+        path: process.env.COOKIE_PATH || "/",
         httpOnly: true,
         sameSite: "strict",
         secure: process.env.COOKIE_SECURE === "true",
@@ -198,7 +198,9 @@ export async function buildApp({
       await pool.query("DELETE FROM sessions WHERE token_hash=?", [
         hash(req.cookies.workbench_session),
       ]);
-    reply.clearCookie("workbench_session", { path: "/" });
+    reply.clearCookie("workbench_session", {
+      path: process.env.COOKIE_PATH || "/",
+    });
     return { ok: true };
   });
   app.post("/api/v1/password", async (req) => {

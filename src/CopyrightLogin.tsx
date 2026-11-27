@@ -143,7 +143,12 @@ export function CopyrightLogin({
             </p>
             <ol>
               <li>
-                <a href="/downloads/copyright-login.zip" download>
+                <a
+                  href={
+                    import.meta.env.BASE_URL + "downloads/copyright-login.zip"
+                  }
+                  download
+                >
                   下载预填扩展 v1.0.1
                 </a>
                 并解压。

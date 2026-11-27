@@ -469,7 +469,11 @@ export default function Assistant({
                           aria-label={"查看截图 " + (i + 1)}
                         >
                           <img
-                            src={"/api/v1/screenshots/" + id}
+                            src={
+                              import.meta.env.BASE_URL +
+                              "api/v1/screenshots/" +
+                              id
+                            }
                             alt={"聊天截图 " + (i + 1)}
                           />
                         </button>
@@ -700,7 +704,7 @@ export default function Assistant({
         <button onClick={() => onNavigate("settings")}>
           <Settings size={13} /> 连接设置
         </button>
-        <a href="/api/v1/export" download>
+        <a href={import.meta.env.BASE_URL + "api/v1/export"} download>
           <Download size={13} /> 下载备份
         </a>
       </div>
