@@ -147,7 +147,7 @@ const system = `你是“软著订单工作台”的中文管理助手，替这�
 各type payload：
 create_tasks {customerId?:客户ID,imageIds:截图ID数组,items:[{customerName,memberName,email,wechat,kind:"new"或"correction",softwareName,intakeName,originalName,filingAccount,filingPassword,notes,purchasedAt:"YYYY-MM-DD",purchaseDateDefaulted:是否为默认今天,amount:"数字字符串或空",needsSubmission:false,parentId?:原任务ID}]}，一次同一客户多款软件。不要编造customerId，独立新客户省略。关联补正时用真实parentId和对应customerId。
 update_task {taskId,fields:{需要修改的task字段},imageIds?:新截图ID数组}，保留其它资料和历史。
-link_task {taskId,parentId:真实原任务ID或null}；external_delivery {taskId,channel:"明确发送渠道",notes:"备注"}；reopen_task {taskId}。
+link_task {taskId,parentId:真实原任务ID或null}；external_delivery {taskId,channel:"明确发送渠道",notes:"备注"}；reopen_task {taskId}。批量确认外部交付时，逐个核对软件名称并排除已完成、归档、撤销或已转返工的任务。每个唯一匹配的任务生成一项 external_delivery。把同名与找不到的软件分别写入 reply，这些项目不生成提案。
 archive_tasks {targets:[{taskId}],archived:true或false}。最多100项，列清对象。
 update_customer {customerId,fields:{name,memberName,email,wechat,notes}}，仅影响客户档案；同时修改订单需额外任务提案。
 save_template {id?:已有模板ID,name,kind:"new"/"correction"/"all",isDefault:boolean,subject,html}，html支持颜色、字号、加粗等。模板变量仅{{客户称呼}}/{{软件名称}}/{{原名称}}/{{邮箱}}；其它变量不可编造。delete_template {id}。
@@ -691,6 +691,77 @@ async function plan(message: Doc, deps: AssistantDependencies) {
   const extraction = message.imageIds.length
     ? await (deps.extract || extractImages)(message.imageIds)
     : null;
+  const [instruction, ...lines] = message.text.trim().split(/\r?\n/);
+  const names = [
+    ...new Set(lines.map((line: string) => line.trim()).filter(Boolean)),
+  ] as string[];
+  if (
+    !extraction &&
+    names.length &&
+    names.length <= 30 &&
+    /已通过微信发给客户.*按软件名称查找未完成订单.*生成交付确认/.test(
+      instruction,
+    )
+  ) {
+    const tasks = await all("task");
+    const reworked = new Set(
+      tasks.filter((t) => t.parentId && !t.cancelledAt).map((t) => t.parentId),
+    );
+    const eligible = tasks.filter(
+      (t) =>
+        !t.completed && !t.archived && !t.cancelledAt && !reworked.has(t.id),
+    );
+    const proposals = [];
+    const ambiguous = [];
+    const missing = [];
+    const targets = new Set<string>();
+    const normalize = (value: string) =>
+      value.normalize("NFKC").trim().toLowerCase();
+    for (const name of names) {
+      const matches = eligible.filter((t) =>
+        [t.softwareName, t.intakeName, t.originalName].some(
+          (value) =>
+            typeof value === "string" && normalize(value) === normalize(name),
+        ),
+      );
+      if (!matches.length) missing.push(name);
+      else if (matches.length > 1)
+        ambiguous.push(`${name}（${matches.length} 项）`);
+      else {
+        const task = matches[0];
+        if (targets.has(task.id)) continue;
+        targets.add(task.id);
+        seen.set("task:" + task.id, {
+          kind: "task",
+          id: task.id,
+          revision: task.revision,
+        });
+        proposals.push({
+          type: "external_delivery",
+          payload: {
+            taskId: task.id,
+            revision: task.revision,
+            channel: "微信",
+          },
+        });
+      }
+    }
+    return {
+      output: modelOutput.parse({
+        reply: [
+          `已找到 ${proposals.length} 项可确认交付的订单。`,
+          ambiguous.length ? "同名待核对\n" + ambiguous.join("\n") : "",
+          missing.length ? "找不到未完成订单\n" + missing.join("\n") : "",
+        ]
+          .filter(Boolean)
+          .join("\n\n"),
+        proposals,
+      }),
+      seen,
+      extraction,
+      proposalRevisions,
+    };
+  }
   const continuingOrder = detail.proposals.some((p) => p.status === "pending");
   if (extraction && !message.text.trim() && !continuingOrder) {
     const payload = {

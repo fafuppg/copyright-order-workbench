@@ -674,6 +674,8 @@ async function applyAction(p: Doc, c: PoolConnection) {
         );
   }
   if (type === "external_delivery") {
+    if (t.completed || t.archived)
+      throw new AppError(409, "任务已完成或归档，请重新核对。");
     const sentAt = new Date().toISOString();
     await save(
       "task",

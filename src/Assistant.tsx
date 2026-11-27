@@ -65,6 +65,7 @@ export default function Assistant({
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [history, setHistory] = useState(true),
+    [batch, setBatch] = useState<Item | null>(null),
     [selected, setSelected] = useState<Item | null>(null),
     [viewImages, setViewImages] = useState<string[] | null>(null),
     [uncertain, setUncertain] = useState(false),
@@ -90,6 +91,27 @@ export default function Assistant({
   const processing =
     detail && ["queued", "processing"].includes(detail.session?.status);
 
+  function openProposal(proposal: Item, conversation: Item) {
+    const message = conversation.messages.find((m: Item) =>
+      proposal.messageId
+        ? m.id === proposal.messageId
+        : m.proposalIds?.includes(proposal.id),
+    );
+    const deliveries = (conversation.proposals || []).filter(
+      (p: Item) =>
+        p.type === "external_delivery" &&
+        isProposalEditable(p) &&
+        (p.messageId
+          ? p.messageId === message?.id
+          : message?.proposalIds?.includes(p.id)),
+    );
+    if (proposal.type === "external_delivery" && message && deliveries.length) {
+      setBatch({ ...message, deliveries, sessionId: conversation.session.id });
+    } else {
+      setSelected(proposal);
+    }
+  }
+
   async function loadSessions() {
     const list = await api("/assistant/sessions");
     if (alive.current) setSessions(list);
@@ -109,7 +131,7 @@ export default function Assistant({
         watch.current.known,
       );
       watch.current = null;
-      if (proposal) setSelected(proposal);
+      if (proposal) openProposal(proposal, next);
       void loadSessions().catch(() => {});
     }
     return next;
@@ -198,6 +220,7 @@ export default function Assistant({
     setDetail(null);
     setError("");
     setSelected(null);
+    setBatch(null);
     watch.current = null;
     if (!id) {
       setHistory(false);
@@ -479,12 +502,32 @@ export default function Assistant({
                         ? p.messageId === message.id
                         : message.proposalIds?.includes(p.id),
                     )
+                    .filter(
+                      (p: Item, index: number, list: Item[]) =>
+                        p.type !== "external_delivery" ||
+                        !isProposalEditable(p) ||
+                        list.findIndex(
+                          (x) =>
+                            x.type === "external_delivery" &&
+                            isProposalEditable(x),
+                        ) === index,
+                    )
                     .map((proposal: Item) => (
                       <ProposalCard
                         key={proposal.id}
                         proposal={proposal}
                         tasks={tasks}
-                        onOpen={() => setSelected(proposal)}
+                        deliveryCount={
+                          (detail.proposals || []).filter(
+                            (p: Item) =>
+                              p.type === "external_delivery" &&
+                              isProposalEditable(p) &&
+                              (p.messageId
+                                ? p.messageId === message.id
+                                : message.proposalIds?.includes(p.id)),
+                          ).length
+                        }
+                        onOpen={() => openProposal(proposal, detail)}
                       />
                     ))}
                   {message.status === "failed" && (
@@ -661,6 +704,20 @@ export default function Assistant({
           <Download size={13} /> 下载备份
         </a>
       </div>
+      {batch && (
+        <DeliveryBatchDialog
+          key={batch.id}
+          batch={batch}
+          tasks={tasks}
+          onClose={() => setBatch(null)}
+          onSaved={async () => {
+            await Promise.allSettled([
+              load(batch.sessionId, false),
+              onRefresh(),
+            ]);
+          }}
+        />
+      )}
       {selected && (
         <ProposalDialog
           key={selected.id + ":" + selected.revision}
@@ -682,13 +739,151 @@ export default function Assistant({
   );
 }
 
+function DeliveryBatchDialog({
+  batch,
+  tasks,
+  onClose,
+  onSaved,
+}: {
+  batch: Item;
+  tasks: Item[];
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const proposals: Item[] = batch.deliveries;
+  const [checked, setChecked] = useState(
+    () => new Set(proposals.map((p) => p.id)),
+  );
+  const [applied, setApplied] = useState<Set<string>>(new Set());
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const pending = proposals.filter(
+    (p) => checked.has(p.id) && !applied.has(p.id),
+  );
+
+  async function confirm() {
+    if (busy || !pending.length) return;
+    setBusy(true);
+    for (const proposal of pending) {
+      try {
+        const result = await api(
+          "/assistant/proposals/" + proposal.id + "/confirm",
+          {
+            revision: proposal.revision,
+          },
+        );
+        if (result.status !== "applied")
+          throw new Error(result.error || "交付未保存");
+        setApplied((previous) => new Set(previous).add(proposal.id));
+      } catch (error) {
+        setErrors((previous) => ({
+          ...previous,
+          [proposal.id]:
+            error instanceof Error ? error.message : "保存失败，请重试",
+        }));
+      }
+    }
+    await onSaved();
+    setBusy(false);
+  }
+
+  return (
+    <Modal
+      title="批量交付确认"
+      onClose={() => {
+        if (!busy) onClose();
+      }}
+    >
+      <div className="modal-body">
+        <p className="notice">
+          确认后，勾选的订单会标记为已完成并保存交付记录。
+        </p>
+        <ul className="delivery-batch-list">
+          {proposals.map((proposal) => {
+            const task = tasks.find((t) => t.id === proposal.payload.taskId);
+            const done = applied.has(proposal.id);
+            return (
+              <li key={proposal.id}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={checked.has(proposal.id)}
+                    disabled={busy || done}
+                    onChange={(event) => {
+                      const selected = event.target.checked;
+                      setChecked((previous) => {
+                        const next = new Set(previous);
+                        if (selected) next.add(proposal.id);
+                        else next.delete(proposal.id);
+                        return next;
+                      });
+                    }}
+                  />
+                  <span>
+                    <strong>{task?.softwareName || proposal.title}</strong>
+                    <small>
+                      {[
+                        task?.customerName,
+                        task?.kind === "new"
+                          ? "新单"
+                          : task?.kind === "correction"
+                            ? "补正"
+                            : "",
+                        proposal.payload.channel,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </small>
+                    {proposal.payload.notes && (
+                      <small>{proposal.payload.notes}</small>
+                    )}
+                  </span>
+                </label>
+                {done ? (
+                  <small>已确认</small>
+                ) : (
+                  errors[proposal.id] && (
+                    <p className="error" role="alert">
+                      {errors[proposal.id]}
+                    </p>
+                  )
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        {batch.text && (
+          <section>
+            <h3>匹配说明</h3>
+            <div className="assistant-message-text">{batch.text}</div>
+          </section>
+        )}
+      </div>
+      <div className="modal-foot">
+        <button disabled={busy} onClick={onClose}>
+          {applied.size ? "关闭" : "取消"}
+        </button>
+        <button
+          className="primary"
+          disabled={busy || !pending.length}
+          onClick={() => void confirm()}
+        >
+          {busy ? "正在保存…" : `确认交付（${pending.length} 项）`}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 function ProposalCard({
   proposal,
   tasks,
+  deliveryCount,
   onOpen,
 }: {
   proposal: Item;
   tasks: Item[];
+  deliveryCount?: number;
   onOpen: () => void;
 }) {
   const task = tasks.find((t) => t.id === proposal.payload?.taskId);
@@ -696,7 +891,11 @@ function ProposalCard({
     <section className={"assistant-proposal-card " + proposal.status}>
       <header>
         <strong>
-          {proposal.title || proposalNames[proposal.type] || "待核对操作"}
+          {proposal.type === "external_delivery" &&
+          isProposalEditable(proposal) &&
+          deliveryCount
+            ? `交付确认 · ${deliveryCount} 项`
+            : proposal.title || proposalNames[proposal.type] || "待核对操作"}
         </strong>
         <span>{proposalStates[proposal.status] || proposal.status}</span>
       </header>

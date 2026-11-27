@@ -2,19 +2,21 @@
 export function groupTasks<T extends Record<string, any>>(tasks: T[]) {
   const groups = new Map<
     string,
-    { key: string; date: string; completed: boolean; tasks: T[] }
+    { key: string; date: string; sortDate: string; completed: boolean; tasks: T[] }
   >();
   for (const task of tasks) {
     const date = task.purchasedAt || "";
+    const sortDate = date || (task.importedHistorical ? "" : "9999");
     const identity = task.customerId
       ? `customer:${task.customerId}`
       : task.orderId
         ? `order:${task.orderId}`
         : `task:${task.id}`;
-    const key = JSON.stringify([!!task.completed, date, identity]);
+    const key = JSON.stringify([!!task.completed, sortDate, identity]);
     const group = groups.get(key) || {
       key,
       date,
+      sortDate,
       completed: !!task.completed,
       tasks: [] as T[],
     };
@@ -31,7 +33,7 @@ export function groupTasks<T extends Record<string, any>>(tasks: T[]) {
   return [...groups.values()].sort(
     (a, b) =>
       Number(a.completed) - Number(b.completed) ||
-      (a.date || "9999").localeCompare(b.date || "9999") ||
+      a.sortDate.localeCompare(b.sortDate) ||
       String(a.tasks[0].createdAt || "").localeCompare(
         String(b.tasks[0].createdAt || ""),
       ) ||

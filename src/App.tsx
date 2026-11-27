@@ -26,6 +26,8 @@ import { MailComposer, Templates, Deliveries } from "./Mail";
 import { Mailbox } from "./Mailbox";
 import { Busy, Empty, Field, InlineCell } from "./components";
 
+const HOME_PAGE = "tasks";
+
 const nav = [
   ["tasks", "任务工作台", ClipboardList],
   ["assistant", "AI 助手", MessagesSquare],
@@ -38,7 +40,7 @@ const nav = [
 export default function App() {
   const [auth, setAuth] = useState<boolean | null>(null),
     [data, setData] = useState<Item | null>(null),
-    [page, setPage] = useState("assistant"),
+    [page, setPage] = useState<string>(HOME_PAGE),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [detail, setDetail] = useState<Item | null>(null),
@@ -128,8 +130,8 @@ export default function App() {
       <aside className="app-sidebar">
         <a
           className="product-name"
-          href="#assistant"
-          onClick={() => setPage("assistant")}
+          href={`#${HOME_PAGE}`}
+          onClick={() => setPage(HOME_PAGE)}
         >
           软著订单工作台<span>订单 · 补正 · 交付</span>
         </a>

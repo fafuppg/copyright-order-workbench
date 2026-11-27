@@ -20,6 +20,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ExternalLink,
+  Download,
+  Package,
+  PackageCheck,
+  Stamp,
+  ShieldCheck,
 } from "lucide-react";
 import { api, emptyTask, newTaskDraft, dateLabel, type Item } from "./api";
 import {
@@ -368,6 +373,73 @@ function GroupContacts({
   );
 }
 
+function CancelCorrectionDialog({
+  task,
+  onClose,
+  onCancelled,
+}: {
+  task: Item;
+  onClose: () => void;
+  onCancelled: () => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const element = dialog.current!;
+    element.showModal();
+    return () => element.close();
+  }, []);
+
+  async function confirm() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api("/tasks/" + task.id + "/cancel-correction", {
+        revision: task.revision,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "操作失败，请重试。");
+      setBusy(false);
+      return;
+    }
+    onCancelled();
+  }
+
+  return (
+    <dialog
+      ref={dialog}
+      className="modal cancel-correction-dialog"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
+      onKeyDown={(e) => e.stopPropagation()}
+      onCancel={(e) => {
+        e.preventDefault();
+        if (!busy) onClose();
+      }}
+    >
+      <header className="modal-head">
+        <h2 id={titleId}>撤销补正</h2>
+      </header>
+      <div className="modal-body" id={descriptionId}>
+        <strong>{task.softwareName || task.intakeName || "名称待定"}</strong>
+        <p>撤销后会恢复原任务，补正资料和交付历史仍可查看。</p>
+        {error && <p role="alert">{error}</p>}
+      </div>
+      <footer className="modal-foot">
+        <button autoFocus disabled={busy} onClick={onClose}>取消</button>
+        <button className="primary" disabled={busy} onClick={() => void confirm()}>
+          {busy ? "正在撤销…" : "确认撤销"}
+        </button>
+      </footer>
+    </dialog>
+  );
+}
+
 export function TaskList({
   tasks,
   onRefresh,
@@ -399,8 +471,31 @@ export function TaskList({
     [query, setQuery] = useState(""),
     [page, setPage] = useState(1),
     [pageSize, setPageSize] = useState(50);
+  const [cancelTarget, setCancelTarget] = useState<Item | null>(null);
   const savingIds = useRef(new Set<string>());
   const [saving, setSaving] = useState<Set<string>>(new Set());
+  async function copyCopyrightPrompt(task: Item) {
+    const name = task.softwareName?.trim() || task.intakeName?.trim() || "软件名称";
+    const nameWithVersion = /v1\.0$/i.test(name) ? name : name + "V1.0";
+    const correctionNote = task.kind === "correction" ? "\n（名称看看怎么改一下），" : "";
+    const prompt = [
+      "[$copyright-full-package]我现在想申请软件著作，需要你帮我编写申请相关的材料，个人申请，以下是项目背景，web端，所有信息全部由你自定，其他全部信息由你自定或者留空，完成一份合格能顺利下证的软著材料,内容设计尽量前沿点，避免模板化和重复。软著背景：",
+      nameWithVersion + correctionNote,
+      "（近期大量出现以下审查意见，注意规避：此申请与若干已登记或申请中的软件文档鉴别材料存在雷同或重复的情况，或者 当前项目的操作手册存在模板化程度较高，缺乏独创性，代表性等问题）",
+      "在当前项目空间下创建一个软件名称的文件夹，只用放12项填报信息文档，说明书（或操作手册），再在新创建的文件夹下创建一个code文件夹放入前端文档",
+    ].join("\n\n");
+
+    await copyText(prompt, "软著提示词");
+  }
+
+  async function copyText(text: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      notify("已复制" + label);
+    } catch {
+      notify("复制失败，请检查剪贴板权限后重试");
+    }
+  }
   const visible = tasks
     .filter(
       (t) => !t.cancelledAt || ["all", "archive", "history"].includes(state),
@@ -440,6 +535,18 @@ export function TaskList({
     );
   useEffect(() => setPage(1), [kind, state, query, pageSize]);
   const groups = groupTasks(visible);
+  const [exporting, setExporting] = useState(false);
+  async function exportTasks() {
+    setExporting(true);
+    try {
+      const { downloadTasks } = await import("./task-export");
+      await downloadTasks(groups.flatMap((group) => group.tasks), kind === "new" ? "新单" : "补正");
+    } catch {
+      notify("Excel 导出失败，请重试");
+    } finally {
+      setExporting(false);
+    }
+  }
   const customerTones = new Map<string, number>();
   const customerKey = (t: Item) => t.customerId || t.orderId || t.id;
   for (const group of groups) {
@@ -454,8 +561,8 @@ export function TaskList({
   const dateRowSpans = new Map<string, number>();
   for (const group of pageGroups)
     dateRowSpans.set(
-      JSON.stringify([group.completed, group.date]),
-      (dateRowSpans.get(JSON.stringify([group.completed, group.date])) || 0) +
+      JSON.stringify([group.completed, group.sortDate]),
+      (dateRowSpans.get(JSON.stringify([group.completed, group.sortDate])) || 0) +
         group.tasks.length,
     );
   async function update(t: Item, key: string, v: any) {
@@ -573,12 +680,22 @@ export function TaskList({
             <option value="submit">需要代提交</option>
             <option value="archive">已归档</option>
           </select>
+          <button
+            type="button"
+            className="task-export-button"
+            disabled={exporting || visible.length === 0}
+            onClick={() => void exportTasks()}
+            title="导出当前筛选结果的全部页"
+          >
+            <Download size={16} aria-hidden="true" />
+            {exporting ? "导出中…" : "导出 Excel"}
+          </button>
         </div>
       </div>
       <div className="table-scroll">
         <table className="task-table merged-task-table">
           <colgroup>
-            {[9, 16, 19, 19, 16, 8, 5, 8].map((width, i) => (
+            {[9, 16, 17, 17, 16, 8, 5, 12].map((width, i) => (
               <col key={i} style={{ width: width + "%" }} />
             ))}
           </colgroup>
@@ -590,7 +707,7 @@ export function TaskList({
               <th title="实际制作及交付名称">制作名称</th>
               <th>填报账号密码</th>
               <th>交付状态</th>
-              <th>代提交</th>
+              <th className="submission-cell">代提交</th>
               <th>操作</th>
             </tr>
           </thead>
@@ -606,18 +723,19 @@ export function TaskList({
                       " customer-tone-" +
                       customerTones.get(customerKey(t)) +
                       (rowIndex === 0 ? " customer-group-start" : "") +
-                      (t.needsSubmission ? " needs-submission" : "")
+                      (t.needsSubmission ? " needs-submission" : "") +
+                      (t.completed ? " task-completed" : "")
                     }
                   >
                     {rowIndex === 0 &&
                       (groupIndex === 0 ||
-                        pageGroups[groupIndex - 1].date !== group.date ||
+                        pageGroups[groupIndex - 1].sortDate !== group.sortDate ||
                         pageGroups[groupIndex - 1].completed !==
                           group.completed) && (
                         <td
                           className="merged-date"
                           rowSpan={dateRowSpans.get(
-                            JSON.stringify([group.completed, group.date]),
+                            JSON.stringify([group.completed, group.sortDate]),
                           )}
                         >
                           <span>{group.date || "日期待补"}</span>
@@ -643,6 +761,16 @@ export function TaskList({
                         multiline
                         placeholder="待补录入名称"
                       />
+                      <div className="name-copy-actions">
+                        <button
+                          type="button"
+                          disabled={!(t.intakeName ?? t.softwareName)?.trim()}
+                          onClick={() => void copyText(t.intakeName ?? t.softwareName, "录入名称")}
+                          title="复制录入名称"
+                        >
+                          复制名称
+                        </button>
+                      </div>
                     </td>
                     <td className="software-cell">
                       <InlineCell
@@ -665,6 +793,23 @@ export function TaskList({
                             />
                           </div>
                         )}
+                      <div className="name-copy-actions">
+                        <button
+                          type="button"
+                          disabled={!t.softwareName?.trim()}
+                          onClick={() => void copyText(t.softwareName, "制作名称")}
+                          title="复制制作名称"
+                        >
+                          复制名称
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void copyCopyrightPrompt(t)}
+                          title="复制该订单的软著材料提示词"
+                        >
+                          复制提示词
+                        </button>
+                      </div>
                     </td>
                     <td className="credential-cell">
                       <CopyrightLogin task={t} notify={notify} />
@@ -689,19 +834,23 @@ export function TaskList({
                     </td>
                     <td>
                       <label className="completion-toggle">
-                        <input
-                          type="checkbox"
-                          aria-label={
-                            "完成交付：" + (t.softwareName || "名称待定")
-                          }
-                          checked={!!t.completed}
-                          disabled={
-                            saving.has(t.id) || !!t.inRework || !!t.cancelledAt
-                          }
-                          onChange={(e) =>
-                            void toggleRow(t, "completed", e.target.checked)
-                          }
-                        />
+                        <span className="task-status-icon">
+                          <input
+                            type="checkbox"
+                            aria-label={
+                              "完成交付：" + (t.softwareName || "名称待定")
+                            }
+                            checked={!!t.completed}
+                            disabled={
+                              saving.has(t.id) || !!t.inRework || !!t.cancelledAt
+                            }
+                            onChange={(e) =>
+                              void toggleRow(t, "completed", e.target.checked)
+                            }
+                          />
+                          <Package aria-hidden="true" className="status-off" />
+                          <PackageCheck aria-hidden="true" className="status-on" />
+                        </span>
                         <span>
                           {saving.has(t.id)
                             ? "保存中"
@@ -720,21 +869,25 @@ export function TaskList({
                         </small>
                       )}
                     </td>
-                    <td>
-                      <input
-                        type="checkbox"
-                        aria-label={"标记" + t.softwareName + "需要代提交"}
-                        checked={!!t.needsSubmission}
-                        disabled={
-                          saving.has(t.id) || !!t.inRework || !!t.cancelledAt
-                        }
-                        onChange={(e) =>
-                          void toggleRow(t, "needsSubmission", e.target.checked)
-                        }
-                      />
+                    <td className="submission-cell">
+                      <span className="task-status-icon submission-toggle">
+                        <input
+                          type="checkbox"
+                          aria-label={"标记" + t.softwareName + "需要代提交"}
+                          checked={!!t.needsSubmission}
+                          disabled={
+                            saving.has(t.id) || !!t.inRework || !!t.cancelledAt
+                          }
+                          onChange={(e) =>
+                            void toggleRow(t, "needsSubmission", e.target.checked)
+                          }
+                        />
+                        <Stamp aria-hidden="true" className="status-off" />
+                        <ShieldCheck aria-hidden="true" className="status-on" />
+                      </span>
                     </td>
                     <td>
-                      <div className="row-actions">
+                      <div className="row-actions task-row-actions">
                         <button
                           disabled={saving.has(t.id)}
                           onClick={() => onDetail(t)}
@@ -746,6 +899,7 @@ export function TaskList({
                         <button
                           disabled={!!(t.inRework || t.cancelledAt)}
                           onClick={() => onMail(t)}
+                          className="task-mail-action"
                           title="准备交付邮件"
                         >
                           <Send size={14} />
@@ -764,24 +918,8 @@ export function TaskList({
                           !t.inRework && (
                             <button
                               disabled={saving.has(t.id)}
-                              onClick={async () => {
-                                if (
-                                  !window.confirm(
-                                    "撤销此补正并恢复原任务？补正资料和交付历史会保留。",
-                                  )
-                                )
-                                  return;
-                                try {
-                                  await api(
-                                    "/tasks/" + t.id + "/cancel-correction",
-                                    { revision: t.revision },
-                                  );
-                                  await onRefresh();
-                                  notify("补正已撤销，原任务已恢复");
-                                } catch (e: any) {
-                                  notify(e.message);
-                                }
-                              }}
+                              className="task-cancel-action"
+                              onClick={() => setCancelTarget(t)}
                             >
                               撤销补正
                             </button>
@@ -806,6 +944,17 @@ export function TaskList({
           />
         )}
       </div>
+      {cancelTarget && (
+        <CancelCorrectionDialog
+          task={cancelTarget}
+          onClose={() => setCancelTarget(null)}
+          onCancelled={() => {
+            setCancelTarget(null);
+            notify("补正已撤销，原任务已恢复");
+            void onRefresh().catch(() => notify("补正已撤销，请刷新列表"));
+          }}
+        />
+      )}
       <div className="table-footer">
         <span>
           {visible.length
@@ -880,6 +1029,7 @@ export function TaskDetail({
     [linkQuery, setLinkQuery] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [cancelTarget, setCancelTarget] = useState<Item | null>(null);
   const loadVersion = useRef(0);
   const load = useCallback(async () => {
     const version = ++loadVersion.current;
@@ -971,14 +1121,23 @@ export function TaskDetail({
         !t.cancelledAt && (
           <button
             disabled={busy}
-            onClick={() => {
-              if (window.confirm("撤销此补正并恢复原任务？历史资料会保留。"))
-                void action("/cancel-correction", { revision: t.revision });
-            }}
+            onClick={() => setCancelTarget(t)}
           >
             撤销补正，恢复原任务
           </button>
         )}
+      {cancelTarget && (
+        <CancelCorrectionDialog
+          task={cancelTarget}
+          onClose={() => setCancelTarget(null)}
+          onCancelled={() => {
+            setCancelTarget(null);
+            onClose();
+            notify("补正已撤销，原任务已恢复");
+            void onRefresh().catch(() => notify("补正已撤销，请刷新列表"));
+          }}
+        />
+      )}
       <fieldset
         className="detail-actions"
         disabled={!!(t.inRework || t.cancelledAt)}

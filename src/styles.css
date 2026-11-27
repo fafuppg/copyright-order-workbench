@@ -891,6 +891,27 @@ tbody tr.selected {
   overflow: hidden;
   outline: none;
 }
+.cancel-correction-dialog {
+  width: min(440px, calc(100% - 32px));
+  margin: auto;
+  padding: 0;
+  color: inherit;
+}
+.cancel-correction-dialog:not([open]) {
+  display: none;
+}
+.cancel-correction-dialog::backdrop {
+  background: #17243980;
+}
+.cancel-correction-dialog .modal-body {
+  overflow-wrap: anywhere;
+}
+.cancel-correction-dialog p {
+  margin: 8px 0 0;
+}
+.cancel-correction-dialog [role="alert"] {
+  color: #a52620;
+}
 .modal.wide {
   width: min(1180px, 100%);
   height: min(820px, calc(100dvh - 48px));
@@ -2937,18 +2958,6 @@ tbody tr.selected {
   }
 }
 
-.compact-ledger .software-row.needs-submission {
-  background: #cdddf7;
-}
-.compact-ledger .software-row.needs-submission.row-tone-1 {
-  background: #d9d1ee;
-}
-.compact-ledger .software-row.needs-submission:hover {
-  background: #bfcef0;
-}
-.compact-ledger .software-row.needs-submission .intake-name-cell {
-  box-shadow: inset 3px 0 #557cc0;
-}
 .completion-toggle {
   display: inline-flex;
   align-items: center;
@@ -3018,19 +3027,173 @@ fieldset.detail-actions { border: 0; margin: 0; min-width: 0; }
 .compact-ledger .completion-toggle { gap:3px; font-size:11px; }
 .compact-ledger .original-name:has(.cell-editor) { max-height:none; overflow:visible; }
 
-/* Customer identity is the primary colour grouping; submission deepens that hue. */
-.compact-ledger .customer-tone-0 { --customer-bg:#edf4ff; --customer-strong:#cadaf4; --customer-panel:#dce8fc; --customer-accent:#305c99; }
-.compact-ledger .customer-tone-1 { --customer-bg:#eaf7ef; --customer-strong:#c4e5d1; --customer-panel:#d4eddf; --customer-accent:#236346; }
-.compact-ledger .customer-tone-2 { --customer-bg:#fff6e6; --customer-strong:#f3dcb3; --customer-panel:#fae9c9; --customer-accent:#805416; }
-.compact-ledger .customer-tone-3 { --customer-bg:#f4edfc; --customer-strong:#dfcdef; --customer-panel:#eadef6; --customer-accent:#69418a; }
+/* Customer colours group related orders. */
+.compact-ledger .customer-tone-0 { --customer-bg:#edf4ff; --customer-panel:#dce8fc; --customer-accent:#305c99; }
+.compact-ledger .customer-tone-1 { --customer-bg:#eaf7ef; --customer-panel:#d4eddf; --customer-accent:#236346; }
+.compact-ledger .customer-tone-2 { --customer-bg:#fff6e6; --customer-panel:#fae9c9; --customer-accent:#805416; }
+.compact-ledger .customer-tone-3 { --customer-bg:#f4edfc; --customer-panel:#eadef6; --customer-accent:#69418a; }
 .compact-ledger .merged-task-table .software-row > td:not(.merged-date) { background:var(--customer-bg); }
-.compact-ledger .merged-task-table .software-row.needs-submission > td:not(.merged-date):not(.merged-customer) { background:var(--customer-strong); }
+.compact-ledger .merged-task-table .software-row.needs-submission:not(.task-completed) > td:not(.merged-date):not(.merged-customer) { background:#ffc5cc; }
 .compact-ledger .merged-task-table .software-row > td.merged-customer { background:var(--customer-panel); border-left:4px solid var(--customer-accent); }
 .compact-ledger .merged-task-table .customer-group-start > td:not(.merged-date) { border-top:2px solid var(--customer-accent); }
-.compact-ledger .software-row.needs-submission .intake-name-cell { box-shadow:inset 3px 0 var(--customer-accent); }
+.compact-ledger .software-row.needs-submission .intake-name-cell { box-shadow:inset 4px 0 #b42335; }
 .compact-ledger .inline-contacts .contact-customerName { background:var(--customer-accent); border-radius:4px; padding:2px 6px; margin-bottom:5px; }
 .compact-ledger .inline-contacts .contact-customerName .editable > span,
 .compact-ledger .inline-contacts .contact-customerName > span { color:#fff; font-weight:700; font-size:13px; }
 .compact-ledger .contact-customerName .editable:hover { background:#ffffff18; outline-color:#ffffff80; }
 .compact-ledger .contact-customerName .editable.just-saved { background:#ffffff18; }
 .compact-ledger .contact-customerName .cell-editor input { color:#172c43; background:#fff; }
+
+.task-status-icon {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  vertical-align: middle;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: #54637a;
+}
+
+.task-status-icon input[type="checkbox"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.task-status-icon svg {
+  width: 17px;
+  height: 17px;
+  pointer-events: none;
+}
+
+.task-status-icon .status-on,
+.task-status-icon input:checked ~ .status-off {
+  display: none;
+}
+
+.task-status-icon input:checked ~ .status-on {
+  display: block;
+}
+
+.task-status-icon:has(input:checked) {
+  color: #176343;
+  background: #e6f5ec;
+}
+
+.task-status-icon:has(input:enabled):hover {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.task-status-icon:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.task-status-icon:has(input:disabled) {
+  opacity: 0.55;
+}
+
+.task-status-icon input:disabled {
+  cursor: default;
+}
+
+.compact-ledger .merged-task-table .submission-cell {
+  text-align: center;
+}
+
+.submission-toggle:has(input:checked) {
+  color: #fff;
+  background: #a91d31;
+}
+
+.compact-ledger .row-actions.task-row-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.compact-ledger .task-row-actions button {
+  justify-content: center;
+  min-height: 34px;
+  padding: 4px;
+  border: 1px solid #8997aa;
+  border-radius: 6px;
+  background: #fff;
+  color: #25364d;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.compact-ledger .task-row-actions .task-mail-action {
+  border-color: #24538b;
+  background: #24538b;
+  color: #fff;
+}
+
+.compact-ledger .task-row-actions .task-cancel-action {
+  grid-column: 1 / -1;
+  color: #9f2030;
+}
+
+.compact-ledger .task-row-actions button:enabled:hover {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.compact-ledger .task-row-actions button:disabled {
+  opacity: 0.5;
+}
+
+.name-copy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.name-copy-actions button {
+  min-height: 28px;
+  padding: 3px 7px;
+  border: 1px solid #8997aa;
+  border-radius: 6px;
+  background: #fff;
+  color: #25364d;
+  font-size: 13px;
+}
+
+.name-copy-actions button:enabled:hover {
+  border-color: #24538b;
+  background: #edf4ff;
+}
+
+.name-copy-actions button:disabled {
+  opacity: 0.5;
+}
+
+.compact-ledger .merged-task-table .software-row.task-completed > td {
+  background: #a6aeb9;
+  border-top-color: #7d8795;
+}
+
+.compact-ledger .merged-task-table .software-row.task-completed > .merged-customer {
+  border-left-color: #596675;
+}
+
+.compact-ledger .software-row.task-completed .intake-name-cell {
+  box-shadow: inset 4px 0 #596675;
+}
+
+.compact-ledger .software-row.task-completed .muted {
+  color: #26364a;
+}
+
+.task-export-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}

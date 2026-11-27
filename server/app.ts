@@ -642,13 +642,19 @@ export async function buildApp({
   if (existsSync(path.resolve("dist"))) {
     await app.register(staticFiles, {
       root: path.resolve("dist"),
-      wildcard: false,
+      setHeaders(reply, file) {
+        if (path.basename(file) === "index.html")
+          reply.header("Cache-Control", "no-cache");
+      },
     });
-    app.setNotFoundHandler((req, reply) =>
-      req.url.startsWith("/api/")
-        ? reply.code(404).send({ error: "接口不存在" })
-        : reply.sendFile("index.html"),
-    );
+    app.setNotFoundHandler((req, reply) => {
+      if (req.url.startsWith("/api/"))
+        return reply.code(404).send({ error: "接口不存在" });
+      const pathname = req.url.split("?")[0];
+      if (pathname.startsWith("/assets/") || path.extname(pathname))
+        return reply.code(404).send({ error: "文件不存在" });
+      return reply.header("Cache-Control", "no-cache").sendFile("index.html");
+    });
   }
   if (workers) {
     await recoverAssistant();
